@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "811847941496",
+    "project_id": "wardrobeai-30887",
+    "storage_bucket": "wardrobeai-30887.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:811847941496:android:3510ca8b87c958f3a1dc8d",
+        "android_client_info": {
+          "package_name": "com.wardrobe.dressai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "811847941496-ia9mv8d2ua9ga97kgeph65gspvtt65i9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.wardrobe.dressai",
+            "certificate_hash": "4512c8da06295b77ad416e9e9a855093e8dc771d"
+          }
+        },
+        {
+          "client_id": "811847941496-808ltuvrd7qgtc8e804al6dksojvmqih.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0y-vaO826Q5iq_GrjTL3JzkwyL9QU58U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "811847941496-808ltuvrd7qgtc8e804al6dksojvmqih.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "811847941496-14b7tnoislull4omof6nvrrb7b80hnc8.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.wardrobe.dressai"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

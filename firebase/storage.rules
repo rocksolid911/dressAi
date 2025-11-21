@@ -1,0 +1,48 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper function to check authentication
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Clothing images - users can upload and manage their own images
+    match /clothing_images/{userId}/{imageId} {
+      // Allow read if authenticated
+      allow read: if isAuthenticated();
+
+      // Allow write only if the user is uploading to their own folder
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+
+      // Validate file size (max 10MB) and type (images only)
+      allow create: if isAuthenticated() &&
+                      request.auth.uid == userId &&
+                      request.resource.size < 10 * 1024 * 1024 &&
+                      request.resource.contentType.matches('image/.*');
+
+      // Allow delete only for own images
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // User avatars - users can upload and manage their own avatar
+    match /user_avatars/avatar_{userId}.jpg {
+      // Allow read if authenticated
+      allow read: if isAuthenticated();
+
+      // Allow write only for own avatar
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+
+      // Validate file size (max 5MB) and type (images only)
+      allow create: if isAuthenticated() &&
+                      request.auth.uid == userId &&
+                      request.resource.size < 5 * 1024 * 1024 &&
+                      request.resource.contentType.matches('image/.*');
+    }
+
+    // Deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
