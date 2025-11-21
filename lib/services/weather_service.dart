@@ -1,30 +1,37 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:geocoding/geocoding.dart';
 import '../models/weather_model.dart';
 
 class WeatherService {
   final Dio _dio = Dio();
-  final String _apiKey = dotenv.env['WEATHER_API_KEY'] ?? '';
-  final String _baseUrl = dotenv.env['WEATHER_API_BASE_URL'] ??
-      'https://api.openweathermap.org/data/2.5';
+  // Open-Meteo is completely free and doesn't require an API key
+  final String _baseUrl = 'https://api.open-meteo.com/v1';
+
+  // Get coordinates from city name
+  Future<Map<String, double>> _getCoordinatesFromCity(String cityName) async {
+    try {
+      List<Location> locations = await locationFromAddress(cityName);
+      if (locations.isNotEmpty) {
+        return {
+          'latitude': locations.first.latitude,
+          'longitude': locations.first.longitude,
+        };
+      }
+      throw Exception('City not found');
+    } catch (e) {
+      throw Exception('Failed to find city: ${e.toString()}');
+    }
+  }
 
   // Get current weather by city name
   Future<WeatherModel> getWeatherByCity(String cityName) async {
     try {
-      final response = await _dio.get(
-        '$_baseUrl/weather',
-        queryParameters: {
-          'q': cityName,
-          'appid': _apiKey,
-          'units': 'metric',
-        },
+      final coords = await _getCoordinatesFromCity(cityName);
+      return await getWeatherByCoordinates(
+        latitude: coords['latitude']!,
+        longitude: coords['longitude']!,
+        cityName: cityName,
       );
-
-      if (response.statusCode == 200) {
-        return WeatherModel.fromJson(response.data);
-      } else {
-        throw Exception('Failed to load weather data');
-      }
     } catch (e) {
       throw Exception('Weather service error: ${e.toString()}');
     }
@@ -34,20 +41,39 @@ class WeatherService {
   Future<WeatherModel> getWeatherByCoordinates({
     required double latitude,
     required double longitude,
+    String? cityName,
   }) async {
     try {
       final response = await _dio.get(
-        '$_baseUrl/weather',
+        '$_baseUrl/forecast',
         queryParameters: {
-          'lat': latitude,
-          'lon': longitude,
-          'appid': _apiKey,
-          'units': 'metric',
+          'latitude': latitude,
+          'longitude': longitude,
+          'current': 'temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code',
+          'timezone': 'auto',
         },
       );
 
       if (response.statusCode == 200) {
-        return WeatherModel.fromJson(response.data);
+        // Get city name from coordinates if not provided
+        String city = cityName ?? 'Unknown';
+        if (cityName == null) {
+          try {
+            List<Placemark> placemarks = await placemarkFromCoordinates(
+              latitude,
+              longitude,
+            );
+            if (placemarks.isNotEmpty) {
+              city = placemarks.first.locality ??
+                     placemarks.first.administrativeArea ??
+                     'Unknown';
+            }
+          } catch (e) {
+            // Keep default city name if geocoding fails
+          }
+        }
+
+        return WeatherModel.fromOpenMeteoJson(response.data, city);
       } else {
         throw Exception('Failed to load weather data');
       }
@@ -59,20 +85,43 @@ class WeatherService {
   // Get 5-day forecast
   Future<List<WeatherModel>> getForecast(String cityName) async {
     try {
+      final coords = await _getCoordinatesFromCity(cityName);
+
       final response = await _dio.get(
         '$_baseUrl/forecast',
         queryParameters: {
-          'q': cityName,
-          'appid': _apiKey,
-          'units': 'metric',
+          'latitude': coords['latitude'],
+          'longitude': coords['longitude'],
+          'daily': 'temperature_2m_max,temperature_2m_min,weather_code,wind_speed_10m_max',
+          'timezone': 'auto',
         },
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> forecastList = response.data['list'];
-        return forecastList
-            .map((json) => WeatherModel.fromJson(json))
-            .toList();
+        final dailyData = response.data['daily'];
+        final List<String> times = List<String>.from(dailyData['time']);
+        final List<double> tempMax = List<double>.from(
+          dailyData['temperature_2m_max'].map((e) => e.toDouble())
+        );
+        final List<double> tempMin = List<double>.from(
+          dailyData['temperature_2m_min'].map((e) => e.toDouble())
+        );
+        final List<int> weatherCodes = List<int>.from(dailyData['weather_code']);
+        final List<double> windSpeeds = List<double>.from(
+          dailyData['wind_speed_10m_max'].map((e) => e.toDouble())
+        );
+
+        List<WeatherModel> forecasts = [];
+        for (int i = 0; i < times.length && i < 5; i++) {
+          forecasts.add(WeatherModel.fromOpenMeteoForecast(
+            cityName,
+            times[i],
+            (tempMax[i] + tempMin[i]) / 2, // Average temperature
+            weatherCodes[i],
+            windSpeeds[i],
+          ));
+        }
+        return forecasts;
       } else {
         throw Exception('Failed to load forecast data');
       }

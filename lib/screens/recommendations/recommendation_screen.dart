@@ -6,8 +6,73 @@ import '../../bloc/recommendation/recommendation_bloc.dart';
 import '../../bloc/recommendation/recommendation_event.dart';
 import '../../bloc/recommendation/recommendation_state.dart';
 
-class RecommendationScreen extends StatelessWidget {
+class RecommendationScreen extends StatefulWidget {
   const RecommendationScreen({super.key});
+
+  @override
+  State<RecommendationScreen> createState() => _RecommendationScreenState();
+}
+
+class _RecommendationScreenState extends State<RecommendationScreen> {
+  final _promptController = TextEditingController();
+  String _selectedOccasion = 'casual';
+  String? _selectedMood;
+
+  @override
+  void dispose() {
+    _promptController.dispose();
+    super.dispose();
+  }
+
+  void _generateDailyRecommendations() {
+    final authState = context.read<AuthCubit>().state;
+    final wardrobeState = context.read<WardrobeBloc>().state;
+
+    if (authState is AuthAuthenticated && wardrobeState is WardrobeLoaded) {
+      context.read<RecommendationBloc>().add(
+            GenerateDailyRecommendations(
+              userId: authState.user.id,
+              wardrobe: wardrobeState.items,
+              cityName: authState.user.city,
+            ),
+          );
+    }
+  }
+
+  void _generateOccasionRecommendations() {
+    final authState = context.read<AuthCubit>().state;
+    final wardrobeState = context.read<WardrobeBloc>().state;
+
+    if (authState is AuthAuthenticated && wardrobeState is WardrobeLoaded) {
+      context.read<RecommendationBloc>().add(
+            GenerateOccasionRecommendations(
+              userId: authState.user.id,
+              wardrobe: wardrobeState.items,
+              occasion: _selectedOccasion,
+              mood: _selectedMood,
+              cityName: authState.user.city,
+            ),
+          );
+    }
+  }
+
+  void _generateFromPrompt() {
+    final authState = context.read<AuthCubit>().state;
+    final wardrobeState = context.read<WardrobeBloc>().state;
+
+    if (authState is AuthAuthenticated &&
+        wardrobeState is WardrobeLoaded &&
+        _promptController.text.isNotEmpty) {
+      context.read<RecommendationBloc>().add(
+            GenerateFromPrompt(
+              userId: authState.user.id,
+              wardrobe: wardrobeState.items,
+              prompt: _promptController.text,
+              cityName: authState.user.city,
+            ),
+          );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

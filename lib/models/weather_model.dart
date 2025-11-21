@@ -23,7 +23,7 @@ class WeatherModel extends Equatable {
     required this.timestamp,
   });
 
-  // From API JSON
+  // From OpenWeatherMap API JSON (legacy support)
   factory WeatherModel.fromJson(Map<String, dynamic> json) {
     return WeatherModel(
       cityName: json['name'] ?? '',
@@ -38,8 +38,118 @@ class WeatherModel extends Equatable {
     );
   }
 
-  // Get weather icon URL
-  String get iconUrl => 'https://openweathermap.org/img/wn/$icon@2x.png';
+  // From Open-Meteo API JSON (free, no API key needed)
+  factory WeatherModel.fromOpenMeteoJson(Map<String, dynamic> json, String cityName) {
+    final current = json['current'];
+    final weatherCode = current['weather_code'] as int;
+    final weatherInfo = _getWeatherInfoFromCode(weatherCode);
+
+    return WeatherModel(
+      cityName: cityName,
+      condition: weatherInfo['condition']!,
+      description: weatherInfo['description']!,
+      temperature: (current['temperature_2m'] as num).toDouble(),
+      feelsLike: (current['temperature_2m'] as num).toDouble(), // Open-Meteo doesn't provide feels_like
+      humidity: (current['relative_humidity_2m'] as num).toInt(),
+      windSpeed: (current['wind_speed_10m'] as num).toDouble(),
+      icon: weatherInfo['icon']!,
+      timestamp: DateTime.now(),
+    );
+  }
+
+  // From Open-Meteo forecast data
+  factory WeatherModel.fromOpenMeteoForecast(
+    String cityName,
+    String dateStr,
+    double temperature,
+    int weatherCode,
+    double windSpeed,
+  ) {
+    final weatherInfo = _getWeatherInfoFromCode(weatherCode);
+
+    return WeatherModel(
+      cityName: cityName,
+      condition: weatherInfo['condition']!,
+      description: weatherInfo['description']!,
+      temperature: temperature,
+      feelsLike: temperature,
+      humidity: 50, // Default value for forecast
+      windSpeed: windSpeed,
+      icon: weatherInfo['icon']!,
+      timestamp: DateTime.parse(dateStr),
+    );
+  }
+
+  // Map Open-Meteo WMO weather codes to weather conditions
+  static Map<String, String> _getWeatherInfoFromCode(int code) {
+    switch (code) {
+      case 0:
+        return {'condition': 'Clear', 'description': 'Clear sky', 'icon': '01d'};
+      case 1:
+        return {'condition': 'Clear', 'description': 'Mainly clear', 'icon': '01d'};
+      case 2:
+        return {'condition': 'Clouds', 'description': 'Partly cloudy', 'icon': '02d'};
+      case 3:
+        return {'condition': 'Clouds', 'description': 'Overcast', 'icon': '03d'};
+      case 45:
+      case 48:
+        return {'condition': 'Fog', 'description': 'Foggy', 'icon': '50d'};
+      case 51:
+      case 53:
+      case 55:
+        return {'condition': 'Drizzle', 'description': 'Drizzle', 'icon': '09d'};
+      case 61:
+      case 63:
+      case 65:
+        return {'condition': 'Rain', 'description': 'Rain', 'icon': '10d'};
+      case 66:
+      case 67:
+        return {'condition': 'Rain', 'description': 'Freezing rain', 'icon': '13d'};
+      case 71:
+      case 73:
+      case 75:
+        return {'condition': 'Snow', 'description': 'Snow', 'icon': '13d'};
+      case 77:
+        return {'condition': 'Snow', 'description': 'Snow grains', 'icon': '13d'};
+      case 80:
+      case 81:
+      case 82:
+        return {'condition': 'Rain', 'description': 'Rain showers', 'icon': '09d'};
+      case 85:
+      case 86:
+        return {'condition': 'Snow', 'description': 'Snow showers', 'icon': '13d'};
+      case 95:
+        return {'condition': 'Thunderstorm', 'description': 'Thunderstorm', 'icon': '11d'};
+      case 96:
+      case 99:
+        return {'condition': 'Thunderstorm', 'description': 'Thunderstorm with hail', 'icon': '11d'};
+      default:
+        return {'condition': 'Unknown', 'description': 'Unknown', 'icon': '01d'};
+    }
+  }
+
+  // Get weather icon URL (using a generic icon service since we're not using OpenWeatherMap anymore)
+  String get iconUrl {
+    // Map to emoji-based weather icons for simplicity
+    switch (condition) {
+      case 'Clear':
+        return '☀️';
+      case 'Clouds':
+        return '☁️';
+      case 'Rain':
+        return '🌧️';
+      case 'Drizzle':
+        return '🌦️';
+      case 'Thunderstorm':
+        return '⛈️';
+      case 'Snow':
+        return '❄️';
+      case 'Fog':
+        return '🌫️';
+      default:
+        return '🌤️';
+    }
+  }
 
   // Get temperature in Fahrenheit
   double get temperatureF => (temperature * 9 / 5) + 32;
